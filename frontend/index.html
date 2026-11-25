@@ -1,0 +1,869 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel NOC</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 12h5l2-6 4 12 2-6h7' fill='none' stroke='%231b6ca8' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+:root{
+  --papel:#f4f5f6; --cartao:#ffffff; --tinta:#1c262d; --suave:#5d6b75; --linha:#d8dde1;
+  --acao:#1b6ca8; --sobre-acao:#ffffff; --perigo:#b3372f; --ok:#2e7d4f;
+  --aviso:#7a5200; --aviso-fundo:#fff3d6; --realce:#eaf3fa;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --papel:#14181b; --cartao:#1c2226; --tinta:#e4e9ec; --suave:#93a1ab; --linha:#2d363c;
+    --acao:#4aa3e0; --sobre-acao:#0c1317; --perigo:#ff8b82; --ok:#6fcf97;
+    --aviso:#ffd37a; --aviso-fundo:#3a2f12; --realce:#1f2d38;
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--papel);color:var(--tinta);font:15px/1.45 "Segoe UI",system-ui,sans-serif}
+header{background:var(--cartao);border-bottom:1px solid var(--linha);position:sticky;top:0;z-index:2}
+.topo{max-width:1280px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+h1{font-size:18px;margin:0;font-weight:600}
+h2{font-size:17px;margin:0 0 4px;font-weight:600}
+h3{font-size:15px;margin:0 0 8px;font-weight:600}
+nav{display:flex;gap:2px;flex:1;flex-wrap:wrap}
+nav button{background:none;border:0;border-bottom:3px solid transparent;padding:8px 12px;font:inherit;color:var(--suave);cursor:pointer}
+nav button[aria-current="true"]{color:var(--tinta);border-bottom-color:var(--acao);font-weight:600}
+.estado{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--suave);text-align:right}
+.ponto{width:10px;height:10px;border-radius:50%;background:var(--ok);flex:none}
+.ponto.ruim{background:var(--perigo)}
+main{max-width:1280px;margin:0 auto;padding:20px}
+section[hidden]{display:none}
+.nota{color:var(--suave);margin:0 0 14px}
+.barra{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:12px;flex-wrap:wrap}
+.faixa{background:var(--aviso-fundo);color:var(--aviso);padding:8px 12px;border-radius:6px;margin-bottom:12px;font-size:14px}
+.faixa.erro{background:transparent;border:1px solid var(--perigo);color:var(--perigo)}
+button{font:inherit}
+.primario{background:var(--acao);color:var(--sobre-acao);border:0;border-radius:5px;padding:8px 14px;cursor:pointer;font-weight:600}
+.primario:disabled{opacity:.5;cursor:not-allowed}
+.sec{background:none;color:var(--tinta);border:1px solid var(--linha);border-radius:5px;padding:7px 12px;cursor:pointer}
+.mini{background:none;border:0;color:var(--acao);cursor:pointer;padding:0 2px;font-size:13px}
+.mini.perigo{color:var(--perigo)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var(--acao);outline-offset:2px}
+.rolagem{overflow-x:auto;border:1px solid var(--linha);border-radius:6px;background:var(--cartao)}
+.badge{background:var(--perigo);color:white;font-size:11px;padding:1px 6px;border-radius:999px;margin-left:6px;font-weight:600}
+#aba-sem-regra-btn[aria-current="true"] .badge{background:var(--sobre-acao);color:var(--acao)}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--linha);vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+th{font-weight:600;color:var(--suave);font-size:13px;white-space:nowrap}
+.vazio{color:var(--suave);padding:24px 0}
+/* tabela de alertas */
+.alertas td{vertical-align:middle}
+.alertas tr.resolvido td{opacity:.62}
+.alertas .sevc{font-weight:600;text-align:center;white-space:nowrap;min-width:110px}
+.alertas .host{font-weight:600;white-space:nowrap}
+.alertas .nowrap{white-space:nowrap}
+.st{font-weight:700;display:block;font-size:13px}
+.st.problem{color:var(--perigo)}
+.st.ok{color:var(--ok)}
+.alertas small{color:var(--suave);display:block}
+.obs{margin-top:4px;font-size:13px;color:var(--aviso);background:var(--aviso-fundo);padding:3px 8px;border-radius:4px;display:inline-block}
+a.wiki{display:block;margin-top:4px;font-size:13px;color:var(--acao)}
+.emailc{text-align:center;min-width:170px;white-space:nowrap}
+.emailc button{margin-top:4px}
+.contagem{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1}
+.rot{font-size:13px;color:var(--suave)}
+.rot.venc{color:var(--perigo);font-weight:600}
+/* formulários */
+.form-linha{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-top:16px}
+.caixa{background:var(--cartao);border:1px solid var(--linha);border-radius:6px;padding:14px 16px;margin-top:16px}
+fieldset{border:0;border-top:1px solid var(--linha);margin:16px 0 0;padding:12px 0 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+legend{font-weight:600;padding:0 8px 0 0}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--suave)}
+label.inline{flex-direction:row;align-items:center;gap:8px;color:var(--tinta);font-size:14px}
+input,select,textarea{font:inherit;padding:7px 9px;border:1px solid var(--linha);border-radius:5px;background:var(--papel);color:var(--tinta)}
+input[type=checkbox]{padding:0}
+textarea{resize:vertical}
+.largo{grid-column:1/-1}
+.dica{font-size:13px;color:var(--suave);margin:0}
+.dica b,.dica code{color:var(--tinta)}
+code{background:var(--papel);padding:1px 5px;border-radius:4px;font-size:13px}
+.pega{font-size:13px;color:var(--ok);margin:0}
+.pega.nada{color:var(--suave)}
+.acoes{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+details{margin-top:18px}
+summary{cursor:pointer;color:var(--suave)}
+/* busca de contatos */
+.seletor{position:relative}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;min-height:6px}
+.chip{background:var(--realce);border:1px solid var(--linha);border-radius:14px;padding:2px 4px 2px 10px;font-size:13px;color:var(--tinta);display:inline-flex;gap:6px;align-items:center}
+.chip small{color:var(--suave)}
+.chip button{border:0;background:none;color:var(--suave);cursor:pointer;font-size:16px;line-height:1;padding:0 4px}
+.sugestoes{position:absolute;left:0;right:0;top:100%;z-index:5;background:var(--cartao);border:1px solid var(--linha);border-radius:6px;margin-top:2px;box-shadow:0 6px 16px rgba(0,0,0,.18);max-height:240px;overflow:auto}
+.sugestoes[hidden]{display:none}
+.sugestoes button{display:block;width:100%;text-align:left;background:none;border:0;padding:8px 12px;color:var(--tinta);cursor:pointer}
+.sugestoes button:hover,.sugestoes button.ativo{background:var(--realce)}
+.sugestoes small{color:var(--suave)}
+.sugestoes .nada{padding:8px 12px;color:var(--suave);font-size:13px}
+/* mensagem padrão e janela do e-mail */
+.dois{display:grid;grid-template-columns:minmax(300px,1fr) minmax(300px,1fr);gap:20px;align-items:start}
+.vars{display:flex;gap:6px;flex-wrap:wrap}
+.vars button{background:var(--realce);border:1px solid var(--linha);border-radius:5px;padding:2px 8px;color:var(--tinta);cursor:pointer;font-size:13px}
+iframe{width:100%;height:300px;border:1px solid var(--linha);border-radius:6px;background:#fff}
+dialog{border:1px solid var(--linha);border-radius:8px;background:var(--cartao);color:var(--tinta);padding:20px;width:min(820px,95vw)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.campos{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+dl{display:grid;grid-template-columns:90px 1fr;gap:4px 12px;margin:12px 0}
+dt{color:var(--suave)}
+dd{margin:0;word-break:break-word}
+.nowrap{white-space:nowrap}
+.regra{display:flex;justify-content:space-between;gap:16px;background:var(--cartao);border:1px solid var(--linha);border-radius:6px;padding:12px 16px;margin-bottom:10px}
+.regra h3{margin:0 0 4px}
+.regra p{margin:2px 0}
+.semdest{color:var(--perigo)}
+.marca{display:flex;align-items:center;gap:8px}
+.marca img{height:28px;width:auto}
+.pulso{color:var(--acao);flex:none}
+.resumo{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:14px}
+.kpi{background:var(--cartao);border:1px solid var(--linha);border-radius:6px;padding:10px 14px}
+.kpi b{display:block;font-size:28px;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi span{font-size:13px;color:var(--suave)}
+.kpi.alerta{border-color:var(--perigo)}
+.kpi.alerta b{color:var(--perigo)}
+.sevs{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.sevs i{font-style:normal;font-size:12px;color:var(--suave);display:inline-flex;align-items:center;gap:4px}
+.sevs u{width:9px;height:9px;border-radius:2px;display:inline-block}
+.host-cartao{background:var(--cartao);border:1px solid var(--linha);border-radius:6px;margin-bottom:12px;overflow:hidden}
+.host-topo{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--linha)}
+.host-topo h3{margin:0}
+.host-cartao .rolagem{border:0;border-radius:0}
+.caixa details{margin-top:0}
+.caixa summary{color:var(--tinta)}
+#m-previa{height:210px}
+dialog .acoes{position:sticky;bottom:-20px;background:var(--cartao);padding:12px 0 6px;margin-top:10px}
+@media (max-width:800px){.dois,.campos{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="topo">
+    <div class="marca">
+      <img id="logo" alt="" hidden>
+      <svg class="pulso" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12h5l2-6 4 12 2-6h7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <h1 id="marca-nome">Painel NOC</h1>
+    </div>
+    <nav id="abas">
+      <button data-aba="alertas">Alertas</button>
+      <button data-aba="sem-regra" id="aba-sem-regra-btn">Sem regra <span id="sem-regra-badge" class="badge" hidden>0</span></button>
+      <button data-aba="contatos">Contatos</button>
+      <button data-aba="regras">Regras</button>
+      <button data-aba="mensagem">Mensagem padrão</button>
+      <button data-aba="historico">Histórico</button>
+    </nav>
+    <div class="estado" id="estado" role="status"></div>
+  </div>
+</header>
+
+<main>
+  <div id="aviso" aria-live="polite"></div>
+
+  <section id="aba-alertas">
+    <div class="resumo" id="resumo"></div>
+    <div class="barra">
+      <input type="search" id="filtro" placeholder="Filtrar por host ou problema" aria-label="Filtrar alertas" style="min-width:260px">
+      <label class="inline"><input type="checkbox" id="ver-resolvidos"> Mostrar resolvidos das últimas 24 horas</label>
+    </div>
+    <div id="lista"></div>
+    <div id="teste"></div>
+  </section>
+  <section id="aba-sem-regra" hidden>
+    <div class="barra"><h2>Alertas sem regra específica</h2></div>
+    <p class="nota">Estes alertas caíram na regra padrão "Hosts não cadastrados" — ou seja, o host ou o problema não têm regra própria. Clique em "Revisar e enviar" para atender e, se quiser, cadastre uma regra na aba Regras.</p>
+    <div id="lista-sem-regra"></div>
+  </section>
+  <section id="aba-contatos" hidden></section>
+  <section id="aba-regras" hidden></section>
+  <section id="aba-mensagem" hidden></section>
+  <section id="aba-historico" hidden></section>
+</main>
+
+<dialog id="modal"></dialog>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const norm = s => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const SEV = ["Not classified","Information","Warning","Average","High","Disaster"];
+const COR = ["#97aab3","#7499ff","#ffc859","#ffa059","#e97659","#e45959"];
+const SEVTXT = ["#10181d","#10181d","#10181d","#10181d","#10181d","#ffffff"];
+const hora = s => new Date(s * 1000).toLocaleTimeString("pt-BR", {hour: "2-digit", minute: "2-digit"});
+const horaS = s => new Date(s * 1000).toLocaleTimeString("pt-BR");
+const dataHora = s => new Date(s * 1000).toLocaleString("pt-BR", {day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"});
+function horaCurta(s){  // hoje: só a hora; outro dia: dia/mês e hora
+  const d = new Date(s * 1000);
+  return d.toDateString() === new Date().toDateString() ? horaS(s) : dataHora(s);
+}
+const pad = n => String(n).padStart(2, "0");
+function fmtContagem(s){
+  if (s <= 0) return "vencendo";
+  s = Math.ceil(s); const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60;
+  return h ? `${h}:${pad(m)}:${pad(x)}` : `${pad(m)}:${pad(x)}`;
+}
+function durTxt(s){  // no estilo do Zabbix: 1d 2h 3m
+  s = Math.max(0, Math.floor(s));
+  const d = Math.floor(s/86400), h = Math.floor(s%86400/3600), m = Math.floor(s%3600/60), x = s%60;
+  return d ? `${d}d ${h}h ${m}m` : h ? `${h}h ${m}m` : m ? `${m}m ${x}s` : `${x}s`;
+}
+// Curinga do host: * = qualquer coisa. Mesma lógica que o servidor usa nas regras.
+const casa = (host, padrao) => new RegExp("^" + padrao.split("*").map(p => p.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$", "i").test(host);
+function urlWiki(modelo, host, problema){  // só aceita http(s); {host} e {problema} viram o texto do alerta
+  if (!modelo || !/^https?:\/\//i.test(modelo)) return "";
+  return modelo.replaceAll("{host}", encodeURIComponent(host)).replaceAll("{problema}", encodeURIComponent(problema));
+}
+
+async function api(caminho, opcoes = {}){
+  const {corpo, ...resto} = opcoes;
+  const r = await fetch("/api" + caminho, {headers: {"Content-Type": "application/json"}, ...resto,
+                                          body: corpo === undefined ? undefined : JSON.stringify(corpo)});
+  if (!r.ok){
+    let msg = r.statusText;
+    try { const j = await r.json(); msg = typeof j.detail === "string" ? j.detail : "Dados inválidos. Confira os campos."; } catch {}
+    throw new Error(msg);
+  }
+  return r.status === 204 ? null : r.json();
+}
+let avisoTimer;
+function avisar(texto, erro = false){
+  $("#aviso").innerHTML = `<div class="faixa ${erro ? "erro" : ""}">${esc(texto)}</div>`;
+  clearTimeout(avisoTimer); avisoTimer = setTimeout(() => $("#aviso").innerHTML = "", 7000);
+}
+
+/* ---------- estado geral ---------- */
+let saude = null, deslocamento = 0;  // deslocamento = relógio do servidor menos o do navegador
+const agoraS = () => Date.now() / 1000 + deslocamento;
+async function carregarSaude(){
+  try { saude = await api("/saude"); deslocamento = saude.agora - Date.now() / 1000; } catch (e) { saude = null; }
+  const el = $("#estado");
+  if (!saude){ el.innerHTML = `<span class="ponto ruim"></span><span>Sem conexão com o painel</span>`; return; }
+  $("#marca-nome").textContent = saude.nome; document.title = saude.nome;
+  const logo = $("#logo"); if (saude.logo && !logo.getAttribute("src")) logo.src = "/logo.png"; logo.hidden = !saude.logo;
+  const atrasado = !saude.ultima_leitura || (saude.agora - saude.ultima_leitura) > saude.intervalo_s * 3;
+  const ruim = saude.erro || atrasado;
+  const fonte = saude.modo === "mock" ? "Alertas simulados" : "Zabbix";
+  const linha1 = saude.erro ? `Falha ao ler o Zabbix: ${saude.erro}` : atrasado ? `${fonte}: aguardando a primeira leitura` : `${fonte}: lido às ${horaS(saude.ultima_leitura)}`;
+  const linha2 = saude.email_modo === "smtp" ? "E-mails saem de verdade" : "E-mails em teste: nada é enviado";
+  el.innerHTML = `<span class="ponto ${ruim ? "ruim" : ""}"></span><span>${esc(linha1)}<br>${esc(linha2)}</span>`;
+  desenharTeste();
+}
+
+/* ---------- alertas ---------- */
+let alertas = [];
+async function carregarAlertas(){
+  try {
+    alertas = await api("/incidentes" + ($("#ver-resolvidos").checked ? "?todos=true" : ""));
+    desenharAlertas(); carregarResumo(); carregarSemRegra();
+  } catch (e) {
+    $("#lista").innerHTML = `<p class="vazio">Não foi possível carregar os alertas: ${esc(e.message)}</p>`;
+  }
+}
+let resumoDia = {emails_hoje: 0, resolvidos_hoje: 0};
+async function carregarResumo(){ try { resumoDia = await api("/resumo"); } catch (e) { /* mantém o anterior */ } desenharResumo(); }
+function desenharResumo(){
+  const abertos = alertas.filter(a => a.estado !== "resolvido");
+  const porGravidade = [5, 4, 3, 2, 1, 0].map(g => [g, abertos.filter(a => a.problemas[0] && a.problemas[0].gravidade === g).length]).filter(([, n]) => n);
+  const aguardando = abertos.filter(a => a.estado === "aguardando").length, vencidos = abertos.filter(a => a.estado === "email_pronto").length;
+  $("#resumo").innerHTML = `
+    <div class="kpi"><b>${abertos.length}</b><span>Alertas em aberto</span>
+      <div class="sevs">${porGravidade.map(([g, n]) => `<i><u style="background:${COR[g]}"></u>${n} ${SEV[g]}</i>`).join("")}</div></div>
+    <div class="kpi"><b>${aguardando}</b><span>Aguardando o prazo</span></div>
+    <div class="kpi ${vencidos ? "alerta" : ""}"><b>${vencidos}</b><span>Prazo vencido, para revisar</span></div>
+    <div class="kpi"><b>${resumoDia.emails_hoje}</b><span>E-mails hoje${saude && saude.email_modo !== "smtp" ? " (teste)" : ""}</span></div>
+    <div class="kpi"><b>${resumoDia.resolvidos_hoje}</b><span>Resolvidos hoje</span></div>`;
+}
+function desenharAlertas(){
+  desenharResumo();
+  opcoesRecuperar();
+  const el = $("#lista"), termo = norm($("#filtro").value.trim());
+  const lista = alertas.filter(a => !termo || norm(a.host + " " + (a.problemas[0] ? a.problemas[0].nome : "")).includes(termo));
+  if (!lista.length){
+    el.innerHTML = `<p class="vazio">${alertas.length ? "Nenhum alerta com esse filtro." : "Nenhum alerta em aberto."}</p>`;
+    return;
+  }
+  el.innerHTML = `<div class="rolagem"><table class="alertas"><thead><tr>
+    <th>Hora</th><th>Gravidade</th><th>Status</th><th>Host</th><th>Problema</th><th>Duração</th><th style="text-align:center">E-mail</th>
+    </tr></thead><tbody>${lista.map(linha).join("")}</tbody></table></div>`;
+}
+function linha(a){
+  const p = a.problemas[0] || {nome: "(sem problema)", gravidade: 0, clock: a.criado_em, eventid: ""};
+  const resolvido = a.estado === "resolvido", g = COR[p.gravidade] ? p.gravidade : 0;
+  const wiki = a.regra ? urlWiki(a.regra.wiki_url, a.host, p.nome) : "";
+  const obs = !resolvido && a.regra && a.regra.observacao ? a.regra.observacao : "";
+  const duracao = resolvido ? durTxt((a.resolvido_em || p.clock) - p.clock)
+                            : `<span data-desde="${p.clock}">${durTxt(agoraS() - p.clock)}</span>`;
+  const status = resolvido
+    ? `<span class="st ok">RESOLVED</span><small>às ${horaS(a.resolvido_em || p.clock)}</small>`
+    : `<span class="st problem">PROBLEM</span>`;
+  return `<tr class="${resolvido ? "resolvido" : ""}">
+    <td class="nowrap">${horaCurta(p.clock)}</td>
+    <td class="sevc" style="background:${COR[g]};color:${SEVTXT[g]}">${SEV[g]}</td>
+    <td>${status}</td>
+    <td class="host">${esc(a.host)}</td>
+    <td><div>${esc(p.nome)}</div>${obs ? `<div class="obs">${esc(obs)}</div>` : ""}
+        ${wiki ? `<a class="wiki" href="${esc(wiki)}" target="_blank" rel="noopener noreferrer">Abrir procedimento</a>` : ""}</td>
+    <td class="nowrap">${duracao}</td>
+    <td class="emailc">${celulaEmail(a)}</td></tr>`;
+}
+
+/* ---------- alertas sem regra específica ---------- */
+async function carregarSemRegra(){
+  try {
+    const lista = await api("/sem-regra");
+    const n = lista.length;
+    const badge = $("#sem-regra-badge");
+    if (n > 0) { badge.textContent = n; badge.hidden = false; }
+    else { badge.hidden = true; }
+    desenharSemRegra(lista);
+  } catch (e) { /* silencioso se falhar */ }
+}
+function desenharSemRegra(lista){
+  const el = $("#lista-sem-regra");
+  if (!lista.length){
+    el.innerHTML = `<p class="vazio">Nenhum alerta sem regra específica no momento.</p>`;
+    return;
+  }
+  el.innerHTML = `<div class="rolagem"><table class="alertas"><thead><tr>
+    <th>Hora</th><th>Gravidade</th><th>Status</th><th>Host</th><th>Problema</th><th>Duração</th><th style="text-align:center">E-mail</th><th>Ação</th>
+    </tr></thead><tbody>${lista.map(linhaSemRegra).join("")}</tbody></table></div>`;
+  // Botões "Revisar e enviar" + "Cadastrar regra"
+  $("#lista-sem-regra").addEventListener("click", ev => {
+    const abrir = ev.target.closest("[data-abrir]");
+    if (abrir) return abrirEmail(abrir.dataset.abrir);
+    const cadastrar = ev.target.closest("[data-cadastrar-regra]");
+    if (cadastrar) abrirModalCadastrarRegra(cadastrar.dataset.cadastrarRegra);
+  });
+}
+
+function linhaSemRegra(a){
+  const p = a.problemas[0] || {nome: "(sem problema)", gravidade: 0, clock: a.criado_em, eventid: ""};
+  const resolvido = a.estado === "resolvido", g = COR[p.gravidade] ? p.gravidade : 0;
+  const wiki = a.regra ? urlWiki(a.regra.wiki_url, a.host, p.nome) : "";
+  const obs = !resolvido && a.regra && a.regra.observacao ? a.regra.observacao : "";
+  const duracao = resolvido ? durTxt((a.resolvido_em || p.clock) - p.clock)
+                            : `<span data-desde="${p.clock}">${durTxt(agoraS() - p.clock)}</span>`;
+  const status = resolvido
+    ? `<span class="st ok">RESOLVED</span><small>às ${horaS(a.resolvido_em || p.clock)}</small>`
+    : `<span class="st problem">PROBLEM</span>`;
+  const acao = resolvido ? "" : `<button class="mini" data-cadastrar-regra='${esc(JSON.stringify({host: a.host, problema: p.nome}))}'>Cadastrar regra</button>`;
+  return `<tr class="${resolvido ? "resolvido" : ""}">
+    <td class="nowrap">${horaCurta(p.clock)}</td>
+    <td class="sevc" style="background:${COR[g]};color:${SEVTXT[g]}">${SEV[g]}</td>
+    <td>${status}</td>
+    <td class="host">${esc(a.host)}</td>
+    <td><div>${esc(p.nome)}</div>${obs ? `<div class="obs">${esc(obs)}</div>` : ""}
+        ${wiki ? `<a class="wiki" href="${esc(wiki)}" target="_blank" rel="noopener noreferrer">Abrir procedimento</a>` : ""}</td>
+    <td class="nowrap">${duracao}</td>
+    <td class="emailc">${celulaEmail(a)}</td>
+    <td class="nowrap" style="text-align:center">${acao}</td></tr>`;
+}
+
+/* ---------- modal para cadastrar regra direto do alerta sem regra ---------- */
+async function abrirModalCadastrarRegra(dados){
+  try { var {host, problema} = JSON.parse(dados); } catch { return avisar("Dados inválidos.", true); }
+  const [contatos, hosts] = await Promise.all([api("/contatos"), api("/hosts")]);
+  const m = $("#modal");
+  m.innerHTML = `
+    <h2>Cadastrar regra para ${esc(host)}</h2>
+    <p class="nota">O host e o problema vêm do alerta selecionado. Ajuste se quiser.</p>
+    <form id="f-regra-modal" class="caixa">
+      <fieldset><legend>Host e problema</legend>
+        <label>Host (nome como aparece no Zabbix)<input name="host" list="hosts-lista-modal" required value="${esc(host)}" placeholder="ex.: FW-CLIENTE-A" autocomplete="off"></label>
+        <label>Problema<input name="problema" value="${esc(problema)}" placeholder="ex.: Link OPERADORA-1 indisponível" autocomplete="off"></label>
+        <p class="dica largo">Deixe o problema vazio para valer para qualquer problema deste host. Maiúscula e minúscula não importam.</p>
+      </fieldset>
+      <fieldset><legend>Quando e para quem?</legend>
+        <label>Esperar antes de preparar o e-mail (minutos)<input name="espera_min" type="number" min="1" max="1440" required value="30"></label>
+        <span></span>
+        <label>Para<div id="sel-para-modal"></div></label>
+        <label>Cc<div id="sel-cc-modal"></div></label>
+      </fieldset>
+      <fieldset><legend>Procedimento</legend>
+        <label class="largo">Link do procedimento na wiki (opcional)<input name="wiki_url" placeholder="https://wiki.suaempresa.com/procedimentos?q={host}"></label>
+        <p class="dica largo">Aparece como "Abrir procedimento" embaixo do problema. <code>{host}</code> e <code>{problema}</code> viram o nome do alerta.</p>
+      </fieldset>
+      <details><summary>Opções extras</summary><fieldset>
+        <label class="largo">Observação para quem atende<textarea name="observacao" rows="2"></textarea></label>
+        <label class="inline largo"><input type="checkbox" name="envio_automatico"> Enviar sozinho quando o prazo vencer</label>
+      </fieldset></details>
+      <div class="acoes"><button type="button" class="sec" id="mr-cancelar">Cancelar</button><button class="primario">Salvar regra</button></div>
+    </form>
+    <datalist id="hosts-lista-modal">${hosts.map(h => `<option value="${esc(h)}">`).join("")}</datalist>`;
+  m.showModal();
+  $("#mr-cancelar").onclick = () => m.close();
+  const f = $("#f-regra-modal");
+  seletorContatos($("#sel-para-modal"), contatos, []);
+  seletorContatos($("#sel-cc-modal"), contatos, []);
+  f.onsubmit = async ev => {
+    ev.preventDefault();
+    const c = n => f.elements[n];
+    const corpo = {nome: `${c("host").value.trim()} | ${c("problema").value.trim() || "qualquer problema"}`, host_padrao: c("host").value.trim(),
+      problema_contem: c("problema").value.trim(), espera_min: Number(c("espera_min").value), prioridade: 100,
+      para: Array.from($("#sel-para-modal").querySelectorAll(".chip[data-tira]")).map(x => Number(x.dataset.tira)),
+      cc: Array.from($("#sel-cc-modal").querySelectorAll(".chip[data-tira]")).map(x => Number(x.dataset.tira)),
+      observacao: c("observacao").value, wiki_url: c("wiki_url").value, envio_automatico: c("envio_automatico").checked};
+    try {
+      await api("/regras", {method: "POST", corpo});
+      m.close(); avisar("Regra cadastrada com sucesso!"); carregarSemRegra(); carregarAlertas();
+    } catch (e) { avisar(e.message, true); }
+  };
+}
+function celulaEmail(a){
+  const e = a.email, simulado = !saude || saude.email_modo !== "smtp";
+  const enviadoEm = e && e.enviado_em ? ` às ${hora(e.enviado_em)}` : "";
+  switch (a.estado){
+    case "aguardando":
+      return `<div class="contagem" data-prazo="${a.prazo_em}">${fmtContagem(a.prazo_em - agoraS())}</div>
+              <button class="sec" data-abrir="${a.id}">Revisar e enviar</button>${e && e.estado === "rascunho" ? `<div class="rot">rascunho salvo</div>` : ""}`;
+    case "email_pronto":
+      return `<div class="rot venc">${e && e.erro ? "Falha no último envio" : "Prazo vencido"}</div>
+              <button class="primario" data-abrir="${a.id}">Revisar e enviar</button>`;
+    case "enviado":
+      return `<div class="rot">${simulado ? "Simulado" : "Enviado"}${enviadoEm}</div>${e && e.erro ? `<div class="rot venc">Há endereços recusados</div>` : ""}<button class="mini" data-abrir="${a.id}">Ver e-mail</button>`;
+    case "dispensado": return `<div class="rot">Decidiu não enviar</div>`;
+    default:
+      return e && e.enviado_em ? `<div class="rot">${simulado ? "Simulado" : "Enviado"}${enviadoEm}</div>` : `<div class="rot">—</div>`;
+  }
+}
+$("#lista").addEventListener("click", ev => {
+  const abrir = ev.target.closest("[data-abrir]");
+  if (abrir) return abrirEmail(abrir.dataset.abrir);
+});
+$("#ver-resolvidos").addEventListener("change", carregarAlertas);
+$("#filtro").addEventListener("input", desenharAlertas);
+
+setInterval(() => {  // duração e contagem andam sozinhas, sem consultar o servidor a cada segundo
+  const agora = agoraS();
+  document.querySelectorAll("[data-desde]").forEach(el => el.textContent = durTxt(agora - Number(el.dataset.desde)));
+  document.querySelectorAll("[data-prazo]").forEach(el => el.textContent = fmtContagem(Number(el.dataset.prazo) - agora));
+}, 1000);
+
+/* ---------- e-mail: revisar, ajustar e enviar ---------- */
+async function abrirEmail(id){
+  let d;
+  try {
+    d = await api("/incidentes/" + id);
+    const pronto = d.email && d.email.estado === "rascunho";
+    if (!pronto && (d.estado === "aguardando" || d.estado === "email_pronto")){
+      await api(`/incidentes/${id}/email/preparar`, {method: "POST"});
+      d = await api("/incidentes/" + id);
+    }
+  } catch (e) { return avisar(e.message, true); }
+  const e = d.email;
+  if (!e) return avisar("Este alerta ainda não tem e-mail.", true);
+  const editavel = e.estado === "rascunho", simula = !saude || saude.email_modo !== "smtp";
+  const m = $("#modal"), p = d.problemas[0] || {nome: ""};
+  m.innerHTML = `
+    <h2>${esc(d.host)}</h2>
+    <p class="nota" style="margin-bottom:6px">${esc(p.nome)}</p>
+    <div id="m-erro">${e.erro ? `<div class="faixa erro">${e.estado === "rascunho" ? "Último envio falhou: " : "Atenção: "}${esc(e.erro)}</div>` : ""}</div>
+    ${editavel ? `
+      <div class="campos">
+        <label>Para<input id="m-para" value="${esc(e.para.join(", "))}" placeholder="e-mails separados por vírgula"></label>
+        <label>Cc<input id="m-cc" value="${esc(e.cc.join(", "))}" placeholder="e-mails separados por vírgula"></label>
+        <label style="grid-column:1/-1">Assunto<input id="m-assunto" value="${esc(e.assunto)}"></label>
+        <label style="grid-column:1/-1">Texto antes do alerta<textarea id="m-antes" rows="3">${esc(e.texto_antes)}</textarea></label>
+        <label style="grid-column:1/-1">Texto depois do alerta<textarea id="m-depois" rows="4">${esc(e.texto_depois)}</textarea></label>
+      </div>
+      <p class="dica" style="margin-bottom:10px">A tabela do alerta entra automaticamente entre os dois textos. O que você mudar aqui vale só para este e-mail. Para mudar todos, use a aba Mensagem padrão.</p>`
+    : `<dl><dt>Para</dt><dd>${esc(e.para.join(", ") || "(ninguém)")}</dd>
+           <dt>Cc</dt><dd>${esc(e.cc.join(", ") || "(ninguém)")}</dd>
+           <dt>Assunto</dt><dd>${esc(e.assunto)}</dd></dl>`}
+    <iframe sandbox id="m-previa" title="Prévia do e-mail" srcdoc="${esc(e.corpo_html)}"></iframe>
+    <div class="acoes">
+      <button class="sec" id="m-fechar">Fechar</button>
+      ${editavel ? `<button class="sec" id="m-atualizar">Atualizar prévia</button>
+                    <button class="sec" id="m-descartar">Não enviar</button>
+                    <button class="primario" id="m-enviar">${simula ? "Simular envio" : "Enviar e-mail"}</button>` : ""}
+    </div>`;
+  m.showModal();
+  $("#m-fechar").onclick = () => m.close();
+  if (!editavel) return;
+  const erroModal = msg => $("#m-erro").innerHTML = msg ? `<div class="faixa erro">${esc(msg)}</div>` : "";
+  const coletar = () => ({assunto: $("#m-assunto").value, texto_antes: $("#m-antes").value, texto_depois: $("#m-depois").value,
+                          para: [$("#m-para").value], cc: [$("#m-cc").value]});
+  const salvar = async () => {  // grava os ajustes e redesenha a prévia
+    const novo = await api(`/incidentes/${id}/email`, {method: "PUT", corpo: coletar()});
+    $("#m-previa").srcdoc = novo.email.corpo_html;
+  };
+  $("#m-atualizar").onclick = async () => { erroModal(""); try { await salvar(); } catch (err) { erroModal(err.message); } };
+  $("#m-enviar").onclick = async () => {
+    erroModal("");
+    try {
+      await salvar();
+      const r = await api(`/incidentes/${id}/email/enviar`, {method: "POST"});
+      m.close(); avisar(r.estado === "enviado" ? "E-mail enviado." : "E-mail simulado: nada saiu do servidor."); carregarAlertas();
+    } catch (err) { erroModal(err.message); }
+  };
+  $("#m-descartar").onclick = async () => {
+    try { await api(`/incidentes/${id}/email/descartar`, {method: "POST"}); m.close(); avisar("E-mail descartado."); carregarAlertas(); }
+    catch (err) { erroModal(err.message); }
+  };
+}
+
+/* ---------- alertas de teste (só no modo simulado) ---------- */
+function opcoesRecuperar(){  // lista dos alertas abertos para simular a recuperação (só reescreve se mudou)
+  const sel = $("#f-recuperar [name=eventid]"); if (!sel) return;
+  const abertos = alertas.filter(a => a.estado !== "resolvido" && a.problemas[0]);
+  const html = abertos.map(a => `<option value="${esc(a.problemas[0].eventid)}">${esc(a.host)}: ${esc(a.problemas[0].nome)}</option>`).join("")
+    || `<option value="">(nenhum alerta aberto)</option>`;
+  if (sel.dataset.k === html) return;
+  const atual = sel.value; sel.innerHTML = html; sel.dataset.k = html; if (atual) sel.value = atual;
+}
+function desenharTeste(){
+  const el = $("#teste");
+  if (!saude || saude.modo !== "mock"){ el.innerHTML = ""; return; }
+  if (el.dataset.pronto) return;
+  el.dataset.pronto = 1;
+  el.innerHTML = `<details><summary>Criar ou recuperar alerta de teste</summary>
+    <form id="f-teste" class="form-linha">
+      <label>Host<input name="host" required placeholder="FW-CLIENTE-D"></label>
+      <label>Problema<input name="nome" required placeholder="Link OPERADORA-1 indisponível"></label>
+      <label>Gravidade<select name="gravidade">${SEV.map((n, k) => `<option value="${k}" ${k === 3 ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+      <button class="sec">Criar alerta</button></form>
+    <form id="f-recuperar" class="form-linha">
+      <label>Alerta aberto<select name="eventid" style="min-width:320px"></select></label>
+      <button class="sec">Simular recuperação</button></form></details>`;
+  opcoesRecuperar();
+  $("#f-teste").onsubmit = async ev => {
+    ev.preventDefault();
+    const f = new FormData(ev.target);
+    try { await api("/mock/alerta", {method: "POST", corpo: {host: f.get("host"), nome: f.get("nome"), gravidade: Number(f.get("gravidade"))}});
+          ev.target.reset(); carregarAlertas(); }
+    catch (e) { avisar(e.message, true); }
+  };
+  $("#f-recuperar").onsubmit = async ev => {
+    ev.preventDefault();
+    const id = new FormData(ev.target).get("eventid"); if (!id) return;
+    try { await api("/mock/alerta/" + encodeURIComponent(id), {method: "DELETE"}); carregarAlertas(); }
+    catch (e) { avisar(e.message, true); }
+  };
+}
+
+/* ---------- contatos ---------- */
+async function abaContatos(){
+  const el = $("#aba-contatos");
+  const lista = await api("/contatos");
+  el.innerHTML = `<h2>Contatos</h2><p class="nota">Cadastre cada pessoa uma vez. Nas regras você busca e escolhe quem recebe.</p>
+    ${lista.length ? `<div class="rolagem"><table><thead><tr><th>Nome</th><th>E-mail</th><th></th></tr></thead><tbody>
+      ${lista.map(c => `<tr><td>${esc(c.nome)}</td><td>${esc(c.email)}</td>
+        <td><button class="mini perigo" data-remover="${c.id}">Remover</button></td></tr>`).join("")}</tbody></table></div>`
+      : `<p class="vazio">Nenhum contato ainda.</p>`}
+    <form id="f-contato" class="form-linha">
+      <label>Nome<input name="nome" required></label>
+      <label>E-mail<input name="email" type="email" required></label>
+      <button class="primario">Adicionar contato</button></form>`;
+  $("#f-contato").onsubmit = async ev => {
+    ev.preventDefault(); const f = new FormData(ev.target);
+    try { await api("/contatos", {method: "POST", corpo: {nome: f.get("nome"), email: f.get("email")}}); abaContatos(); }
+    catch (e) { avisar(e.message, true); }
+  };
+  el.onclick = async ev => {
+    const b = ev.target.closest("[data-remover]"); if (!b) return;
+    if (!confirm("Remover este contato? Ele deixa de receber os e-mails das regras.")) return;
+    try { await api("/contatos/" + b.dataset.remover, {method: "DELETE"}); abaContatos(); } catch (e) { avisar(e.message, true); }
+  };
+}
+
+/* Busca inteligente de contatos: digite parte do nome ou do e-mail (sem diferenciar acento ou maiúscula) */
+function seletorContatos(el, contatos, sel){
+  el.classList.add("seletor");
+  el.innerHTML = `<div class="chips"></div><input type="search" placeholder="Buscar por nome ou e-mail" autocomplete="off" aria-label="Buscar contato"><div class="sugestoes" hidden></div>`;
+  const [chips, campo, caixa] = el.children;
+  let ativo = 0;
+  const desenhar = () => {
+    chips.innerHTML = sel.map(id => { const c = contatos.find(x => x.id === id);
+      return `<span class="chip">${esc(c ? c.nome : "?")} <small>${esc(c ? c.email : "")}</small><button type="button" data-tira="${id}" aria-label="Remover ${esc(c ? c.nome : "")}">×</button></span>`; }).join("");
+  };
+  const sugerir = () => {
+    const texto = campo.value.trim(), q = norm(texto);
+    const livres = contatos.filter(c => !sel.includes(c.id));
+    const achados = (q ? livres.filter(c => norm(c.nome + " " + c.email).includes(q)) : livres).slice(0, 8);
+    const novo = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(texto) && !contatos.some(c => norm(c.email) === q);
+    ativo = 0;
+    caixa.innerHTML = achados.map((c, i) => `<button type="button" class="${i === 0 ? "ativo" : ""}" data-add="${c.id}">${esc(c.nome)} <small>${esc(c.email)}</small></button>`).join("")
+      + (novo ? `<button type="button" class="${achados.length ? "" : "ativo"}" data-novo="1">Cadastrar e usar <b>${esc(texto)}</b></button>` : "")
+      + (!achados.length && !novo ? `<div class="nada">${contatos.length ? "Nenhum contato encontrado. Para cadastrar um novo, digite o e-mail completo." : "Nenhum contato cadastrado ainda. Digite um e-mail completo para cadastrar."}</div>` : "");
+    caixa.hidden = false;
+  };
+  const escolher = async b => {
+    if (!b) return;
+    if (b.dataset.add) sel.push(Number(b.dataset.add));
+    else if (b.dataset.novo){
+      const email = campo.value.trim();
+      try { const c = await api("/contatos", {method: "POST", corpo: {nome: email.split("@")[0], email}}); contatos.push(c); sel.push(c.id); }
+      catch (e) { return avisar(e.message, true); }
+    }
+    campo.value = ""; desenhar(); sugerir(); campo.focus();
+  };
+  campo.addEventListener("input", sugerir);
+  campo.addEventListener("focus", sugerir);
+  campo.addEventListener("blur", () => setTimeout(() => caixa.hidden = true, 150));
+  campo.addEventListener("keydown", ev => {
+    const itens = [...caixa.querySelectorAll("button")];
+    if (ev.key === "ArrowDown" || ev.key === "ArrowUp"){
+      ev.preventDefault(); if (!itens.length) return;
+      ativo = (ativo + (ev.key === "ArrowDown" ? 1 : -1) + itens.length) % itens.length;
+      itens.forEach((b, i) => b.classList.toggle("ativo", i === ativo));
+    } else if (ev.key === "Enter"){ ev.preventDefault(); escolher(itens[ativo]); }
+    else if (ev.key === "Escape") caixa.hidden = true;
+    else if (ev.key === "Backspace" && !campo.value && sel.length){ sel.pop(); desenhar(); sugerir(); }
+  });
+  caixa.addEventListener("mousedown", ev => ev.preventDefault());  // não deixa o campo perder o foco antes do clique
+  caixa.addEventListener("click", ev => escolher(ev.target.closest("button")));
+  chips.addEventListener("click", ev => { const b = ev.target.closest("[data-tira]"); if (!b) return;
+    sel.splice(sel.indexOf(Number(b.dataset.tira)), 1); desenhar(); });
+  desenhar();
+}
+
+/* ---------- regras: cada host com os seus problemas ---------- */
+// Só para mostrar regras antigas por padrão de nome (com *)
+function lerPadrao(p){
+  const n = (p.match(/\*/g) || []).length;
+  if (p === "*") return ["todos", ""];
+  if (n === 0) return ["exato", p];
+  if (n === 1 && p.endsWith("*")) return ["comeca", p.slice(0, -1)];
+  if (n === 1 && p.startsWith("*")) return ["termina", p.slice(1)];
+  if (n === 2 && p.length > 2 && p.startsWith("*") && p.endsWith("*")) return ["contem", p.slice(1, -1)];
+  return ["avancado", p];
+}
+const FRASE = {todos: () => "<b>todos os hosts</b>", comeca: t => `hosts cujo nome começa com <b>${esc(t)}</b>`,
+               contem: t => `hosts cujo nome contém <b>${esc(t)}</b>`, termina: t => `hosts cujo nome termina com <b>${esc(t)}</b>`,
+               exato: t => `o host <b>${esc(t)}</b>`, avancado: t => `hosts que combinam com <code>${esc(t)}</code>`};
+
+async function abaRegras(est = {}){
+  const el = $("#aba-regras");
+  const [regras, contatos, hosts] = await Promise.all([api("/regras"), api("/contatos"), api("/hosts")]);
+  const r = est.editarId ? regras.find(x => x.id === est.editarId) : null;
+  const mostrarForm = !!(est.novo || r);
+  const fixo = !!(est.fixo || (r && r.host_padrao === "*" && !r.problema_contem));  // regra dos hosts não cadastrados
+  const nomes = ids => ids.map(id => (contatos.find(c => c.id === id) || {nome: "?"}).nome);
+  const curinga = x => x.host_padrao.includes("*");
+  const grupos = new Map();
+  regras.filter(x => !curinga(x)).forEach(x => {
+    const k = x.host_padrao.toLowerCase();
+    if (!grupos.has(k)) grupos.set(k, {host: x.host_padrao, itens: []});
+    grupos.get(k).itens.push(x);
+  });
+  const lista = [...grupos.values()].sort((a, b) => a.host.localeCompare(b.host, "pt-BR", {sensitivity: "base"}));
+  lista.forEach(g => g.itens.sort((a, b) => (!a.problema_contem) - (!b.problema_contem)
+    || a.problema_contem.localeCompare(b.problema_contem, "pt-BR", {sensitivity: "base"})));
+  const padrao = regras.find(x => x.host_padrao === "*" && !x.problema_contem);
+  const legado = regras.filter(x => curinga(x) && x !== padrao);
+
+  const quem = x => { const para = nomes(x.para), cc = nomes(x.cc);
+    return para.length ? `${esc(para.join(", "))}${cc.length ? `<br><span class="rot">Cc: ${esc(cc.join(", "))}</span>` : ""}`
+                       : `<span class="semdest">sem destinatário</span>`; };
+  const linhaProblema = x => `<tr>
+    <td>${x.problema_contem ? esc(x.problema_contem) : `<i>Qualquer outro problema deste host</i>`}${x.observacao ? `<div class="obs">${esc(x.observacao)}</div>` : ""}</td>
+    <td class="nowrap">${x.espera_min} min${x.envio_automatico ? `<br><span class="rot">envio automático</span>` : ""}</td>
+    <td>${quem(x)}</td><td>${x.wiki_url ? "Com link" : "—"}</td>
+    <td class="nowrap"><button class="mini" data-editar="${x.id}">Editar</button> <button class="mini perigo" data-remover="${x.id}">Remover</button></td></tr>`;
+  const cartaoHost = g => `<div class="host-cartao"><div class="host-topo"><h3>${esc(g.host)}</h3>
+      <div class="nowrap"><button class="mini" data-add-host="${esc(g.host)}">Adicionar problema</button> <button class="mini perigo" data-rm-host="${esc(g.host)}">Remover host</button></div></div>
+    <div class="rolagem"><table><thead><tr><th>Problema</th><th>Espera</th><th>Quem recebe</th><th>Procedimento</th><th></th></tr></thead><tbody>${g.itens.map(linhaProblema).join("")}</tbody></table></div></div>`;
+  const cartaoPadrao = `<div class="regra"><div><h3>Hosts não cadastrados</h3>
+      ${padrao ? `<p>Alertas de hosts que não estão cadastrados esperam <b>${padrao.espera_min} min</b> ${padrao.envio_automatico ? "e o e-mail é <b>enviado sozinho</b>" : "e então o e-mail fica pronto para revisar"}.</p>
+      <p class="${padrao.para.length ? "" : "semdest"}">${padrao.para.length ? "Para: " + esc(nomes(padrao.para).join(", ")) : "<b>Sem destinatário</b>"}${padrao.cc.length ? " · Cc: " + esc(nomes(padrao.cc).join(", ")) : ""}</p>`
+        : `<p>Sem regra: esses alertas esperam 30 min e ficam sem destinatário.</p>`}</div>
+      <div class="nowrap"><button class="mini" ${padrao ? `data-editar="${padrao.id}"` : `data-definir-padrao="1"`}>${padrao ? "Editar" : "Definir"}</button></div></div>`;
+  const cartaoLegado = x => { const [modo, t] = lerPadrao(x.host_padrao), para = nomes(x.para);
+    return `<div class="regra"><div><h3>${esc(x.nome)}</h3>
+      <p>Alertas de ${FRASE[modo](t)}${x.problema_contem ? ` cujo problema contém <b>${esc(x.problema_contem)}</b>` : ""} esperam <b>${x.espera_min} min</b>. ${para.length ? "Para: " + esc(para.join(", ")) : `<span class="semdest">Sem destinatário</span>`}</p></div>
+      <div class="nowrap"><button class="mini perigo" data-remover="${x.id}">Remover</button></div></div>`; };
+
+  const pre = est.prefill || {};
+  const hostIni = r ? r.host_padrao : (est.host || ""), probIni = r ? r.problema_contem : "";
+  const formHtml = !mostrarForm ? "" : `<form id="f-regra" class="caixa">
+      <h3>${fixo ? "Hosts não cadastrados" : r ? "Editar problema" : "Cadastrar problema de um host"}</h3>
+      ${fixo ? `<p class="dica">Vale para alertas de hosts que não estão cadastrados.</p>` : `
+      <fieldset><legend>Host e problema</legend>
+        <label>Host (nome como aparece no Zabbix)<input name="host" list="hosts-lista" required value="${esc(hostIni)}" placeholder="ex.: FW-CLIENTE-A" autocomplete="off"></label>
+        <label>Problema<input name="problema" list="problemas-lista" value="${esc(probIni)}" placeholder="ex.: Link OPERADORA-1 indisponível" autocomplete="off"></label>
+        <p class="dica largo">Escreva o problema como o Zabbix mostra: as sugestões são os problemas que este host já teve. Se o nome muda (números, nome da interface), escreva só a parte que não muda. Deixe vazio para valer para qualquer problema deste host. Maiúscula e minúscula não importam.</p>
+      </fieldset>`}
+      <fieldset><legend>Quando e para quem?</legend>
+        <label>Esperar antes de preparar o e-mail (minutos)<input name="espera_min" type="number" min="1" max="1440" required value="${r ? r.espera_min : (pre.espera_min ?? 30)}"></label>
+        <span></span>
+        <label>Para<div id="sel-para"></div></label>
+        <label>Cc<div id="sel-cc"></div></label>
+      </fieldset>
+      <fieldset><legend>Procedimento</legend>
+        <label class="largo">Link do procedimento na wiki (opcional)<input name="wiki_url" value="${esc(r ? r.wiki_url : (pre.wiki_url || ""))}" placeholder="https://wiki.suaempresa.com/procedimentos?q={host}"></label>
+        <p class="dica largo">Aparece como "Abrir procedimento" embaixo do problema, em cada alerta. No endereço, <code>{host}</code> e <code>{problema}</code> viram o nome do alerta.</p>
+      </fieldset>
+      <details ${r && (r.observacao || r.envio_automatico) ? "open" : ""}><summary>Opções extras: observação e envio automático</summary><fieldset>
+        <label class="largo">Observação para quem atende (aparece no alerta)<textarea name="observacao" rows="2">${esc(r ? r.observacao : "")}</textarea></label>
+        <label class="inline largo"><input type="checkbox" name="envio_automatico" ${r && r.envio_automatico ? "checked" : ""}> Enviar sozinho quando o prazo vencer, sem pedir revisão</label>
+      </fieldset></details>
+      <div class="acoes"><button type="button" class="sec" id="r-cancelar">Cancelar</button>
+        ${!r && !fixo ? `<button class="sec" id="r-outro">Salvar e adicionar outro problema deste host</button>` : ""}
+        <button class="primario">Salvar</button></div></form>`;
+
+  el.innerHTML = `<div class="barra"><div><h2>Regras: hosts e problemas</h2>
+      <p class="nota" style="margin:0">Cadastre cada host e os problemas que ele pode ter. Para cada problema você define quanto esperar, quem recebe e o link do procedimento.</p></div>
+      ${mostrarForm ? "" : `<button class="primario" id="r-novo">Cadastrar host</button>`}</div>
+    ${lista.length ? lista.map(cartaoHost).join("") : `<p class="vazio">Nenhum host cadastrado ainda. Clique em "Cadastrar host".</p>`}
+    ${cartaoPadrao}
+    <p class="dica" style="margin-bottom:14px">Para cada alerta vale o problema cadastrado do host. Se o problema não estiver cadastrado, vale "Qualquer outro problema deste host". Se o host não estiver cadastrado, vale "Hosts não cadastrados".</p>
+    ${legado.length ? `<div class="caixa"><details><summary>Regras por padrão de nome (avançado): ${legado.length}</summary><div style="margin-top:10px">${legado.map(cartaoLegado).join("")}</div></details></div>` : ""}
+    <datalist id="hosts-lista">${[...new Set([...hosts, ...lista.map(g => g.host)])].map(h => `<option value="${esc(h)}">`).join("")}</datalist>
+    <datalist id="problemas-lista"></datalist>
+    <div class="caixa"><details><summary>Testar: qual regra vale para um alerta?</summary>
+      <form id="f-testar" class="form-linha">
+        <label>Host<input name="host" list="hosts-lista" required placeholder="FW-CLIENTE-A"></label>
+        <label>Problema (opcional)<input name="problema" placeholder="Link indisponível"></label>
+        <button class="sec">Ver qual vale</button></form>
+      <p class="dica" id="res-teste" style="margin-top:10px"></p></details></div>
+    ${formHtml}`;
+
+  const abrir = async e => { await abaRegras(e); const f = $("#f-regra"); if (f) f.scrollIntoView({behavior: "smooth"}); };
+  if (mostrarForm){
+    const paraSel = r ? [...r.para] : [...(pre.para || [])], ccSel = r ? [...r.cc] : [...(pre.cc || [])];
+    const f = $("#f-regra"), c = n => f.elements[n];
+    seletorContatos($("#sel-para"), contatos, paraSel);
+    seletorContatos($("#sel-cc"), contatos, ccSel);
+    if (!fixo){
+      const sugerir = async () => {  // problemas que este host já teve, para copiar o nome certo
+        const h = c("host").value.trim(); if (!h) return;
+        try { const v = await api("/problemas-vistos?host=" + encodeURIComponent(h));
+              $("#problemas-lista").innerHTML = v.map(n => `<option value="${esc(n)}">`).join(""); } catch (e) { /* sem sugestões */ }
+      };
+      c("host").addEventListener("change", sugerir); sugerir();
+    }
+    f.onsubmit = async ev => {
+      ev.preventDefault();
+      const outro = !!(ev.submitter && ev.submitter.id === "r-outro");
+      const host = fixo ? "*" : c("host").value.trim(), problema = fixo ? "" : c("problema").value.trim();
+      if (!fixo && host.includes("*")) return avisar("Escreva o nome exato do host, sem *.", true);
+      const corpo = {nome: fixo ? "Hosts não cadastrados" : `${host} | ${problema || "qualquer problema"}`, host_padrao: host,
+        problema_contem: problema, espera_min: Number(c("espera_min").value), prioridade: r ? r.prioridade : 100,
+        para: paraSel, cc: ccSel, observacao: c("observacao").value, wiki_url: c("wiki_url").value,
+        envio_automatico: c("envio_automatico").checked};
+      try {
+        await api(r ? "/regras/" + r.id : "/regras", {method: r ? "PUT" : "POST", corpo});
+        if (outro){
+          avisar(`Salvo. Cadastre outro problema de ${host}.`);
+          return abrir({novo: true, host, prefill: {para: [...paraSel], cc: [...ccSel], espera_min: corpo.espera_min, wiki_url: corpo.wiki_url}});
+        }
+        abaRegras();
+      } catch (e) { avisar(e.message, true); }
+    };
+    $("#r-cancelar").onclick = () => abaRegras();
+  }
+  $("#f-testar").onsubmit = async ev => {
+    ev.preventDefault(); const d = new FormData(ev.target);
+    try {
+      const t = await api(`/regras/testar?host=${encodeURIComponent(d.get("host"))}&problema=${encodeURIComponent(d.get("problema"))}`);
+      $("#res-teste").innerHTML = t.regra
+        ? `Vale a regra <b>${esc(t.regra.nome)}</b>: espera <b>${t.espera_min} min</b>, ${t.regra.envio_automatico ? "envio automático" : "com revisão"}. Para: ${esc(t.para.join(", ") || "ninguém")}. Cc: ${esc(t.cc.join(", ") || "ninguém")}.`
+        : `Nenhuma regra combina. O alerta esperaria ${t.espera_min} min e ficaria sem destinatário.`;
+    } catch (e) { avisar(e.message, true); }
+  };
+  el.onclick = async ev => {
+    const t = ev.target;
+    if (t.closest("#r-novo")) return abrir({novo: true});
+    if (t.closest("[data-definir-padrao]")) return abrir({novo: true, fixo: true});
+    const add = t.closest("[data-add-host]");
+    if (add){
+      const g = lista.find(x => x.host === add.dataset.addHost), base = g.itens[0];
+      return abrir({novo: true, host: g.host, prefill: {para: base.para, cc: base.cc, espera_min: base.espera_min, wiki_url: base.wiki_url}});
+    }
+    const ed = t.closest("[data-editar]"); if (ed) return abrir({editarId: Number(ed.dataset.editar)});
+    const rmh = t.closest("[data-rm-host]");
+    if (rmh){
+      const g = lista.find(x => x.host === rmh.dataset.rmHost);
+      if (confirm(`Remover o host ${g.host} e os ${g.itens.length} problema(s) cadastrado(s) dele?`)){
+        try { for (const x of g.itens) await api("/regras/" + x.id, {method: "DELETE"}); abaRegras(); } catch (e) { avisar(e.message, true); }
+      }
+      return;
+    }
+    const rm = t.closest("[data-remover]");
+    if (rm && confirm("Remover esta regra?")){
+      try { await api("/regras/" + rm.dataset.remover, {method: "DELETE"}); abaRegras(); } catch (e) { avisar(e.message, true); }
+    }
+  };
+}
+
+/* ---------- mensagem padrão ---------- */
+async function abaMensagem(){
+  const el = $("#aba-mensagem");
+  const {modelo, variaveis} = await api("/modelo");
+  el.innerHTML = `<h2>Mensagem padrão do e-mail</h2>
+    <p class="nota">É o texto que todo e-mail de alerta usa. Na hora de enviar, você ainda pode ajustar o texto daquele e-mail.</p>
+    <div class="dois">
+      <form id="f-modelo" class="caixa" style="margin-top:0">
+        <div style="display:grid;gap:12px">
+          <label>Assunto<input name="assunto" required value="${esc(modelo.assunto)}"></label>
+          <label>Texto antes do alerta<textarea name="texto_antes" rows="4">${esc(modelo.texto_antes)}</textarea></label>
+          <label>Texto depois do alerta<textarea name="texto_depois" rows="6">${esc(modelo.texto_depois)}</textarea></label>
+          <div><p class="dica" style="margin-bottom:6px">Campos automáticos (clique para inserir onde o cursor está):</p>
+            <div class="vars" id="vars">${variaveis.map(v => `<button type="button" data-var="${esc(v.campo)}" title="${esc(v.descricao)}">${esc(v.campo)}</button>`).join("")}</div></div>
+          <p class="dica">A tabela com o alerta, no estilo do Zabbix, entra sozinha entre os dois textos.</p>
+        </div>
+        <div class="acoes"><button type="button" class="sec" id="m-restaurar">Restaurar padrão</button><button class="primario">Salvar mensagem</button></div>
+      </form>
+      <div><h3>Prévia com um alerta de exemplo</h3>
+        <p class="dica" style="margin-bottom:8px">Assunto: <b id="previa-assunto"></b></p>
+        <iframe sandbox id="previa-modelo" title="Prévia da mensagem padrão" style="height:360px"></iframe></div>
+    </div>`;
+  const f = $("#f-modelo"), campo = n => f.elements[n];
+  let ultimo = campo("texto_antes"), espera;
+  const valores = () => ({assunto: campo("assunto").value, texto_antes: campo("texto_antes").value, texto_depois: campo("texto_depois").value});
+  const previa = () => { clearTimeout(espera); espera = setTimeout(async () => {
+    try { const p = await api("/modelo/previa", {method: "POST", corpo: valores()});
+          $("#previa-assunto").textContent = p.assunto; $("#previa-modelo").srcdoc = p.corpo_html; } catch (e) { /* assunto vazio enquanto digita */ }
+  }, 350); };
+  f.querySelectorAll("input, textarea").forEach(x => { x.addEventListener("focus", () => ultimo = x); x.addEventListener("input", previa); });
+  $("#vars").onclick = ev => {
+    const b = ev.target.closest("[data-var]"); if (!b) return;
+    const i = ultimo.selectionStart ?? ultimo.value.length, j = ultimo.selectionEnd ?? i;
+    ultimo.value = ultimo.value.slice(0, i) + b.dataset.var + ultimo.value.slice(j);
+    ultimo.focus(); ultimo.selectionStart = ultimo.selectionEnd = i + b.dataset.var.length; previa();
+  };
+  f.onsubmit = async ev => {
+    ev.preventDefault();
+    try { await api("/modelo", {method: "PUT", corpo: valores()}); avisar("Mensagem padrão salva. Vale para os próximos e-mails."); }
+    catch (e) { avisar(e.message, true); }
+  };
+  $("#m-restaurar").onclick = async () => {
+    if (!confirm("Voltar para a mensagem padrão original?")) return;
+    try { await api("/modelo", {method: "DELETE"}); abaMensagem(); avisar("Mensagem restaurada."); } catch (e) { avisar(e.message, true); }
+  };
+  previa();
+}
+
+/* ---------- histórico ---------- */
+const ESTADO_EMAIL = {rascunho: "Aguardando revisão", enviado: "Enviado", simulado: "Simulado", cancelado: "Cancelado (recuperou)", descartado: "Descartado"};
+async function abaHistorico(){
+  const el = $("#aba-historico");
+  const lista = await api("/emails");
+  el.innerHTML = `<h2>Histórico de e-mails</h2><p class="nota">Tudo que o painel preparou, enviou ou descartou.</p>
+    ${lista.length ? `<div class="rolagem"><table><thead><tr><th>Quando</th><th>Host</th><th>Assunto</th><th>Para</th><th>Situação</th></tr></thead><tbody>
+      ${lista.map(e => `<tr><td>${dataHora(e.enviado_em || e.criado_em)}</td><td>${esc(e.host)}</td><td>${esc(e.assunto)}</td>
+        <td>${esc(e.para.join(", "))}</td><td>${ESTADO_EMAIL[e.estado] || esc(e.estado)}${e.erro ? `<br><span class="rot">${esc(e.erro)}</span>` : ""}</td></tr>`).join("")}</tbody></table></div>`
+      : `<p class="vazio">Nenhum e-mail ainda.</p>`}`;
+}
+
+/* ---------- abas e atualização ---------- */
+const CARREGAR = {alertas: carregarAlertas, "sem-regra": carregarSemRegra, contatos: abaContatos, regras: () => abaRegras(), mensagem: abaMensagem, historico: abaHistorico};
+let abaAtual = "alertas";
+function mostrarAba(nome){
+  abaAtual = nome;
+  document.querySelectorAll("#abas button").forEach(b => b.setAttribute("aria-current", b.dataset.aba === nome));
+  document.querySelectorAll("main > section").forEach(s => s.hidden = s.id !== "aba-" + nome);
+  Promise.resolve(CARREGAR[nome]()).catch(e => avisar(e.message, true));
+}
+$("#abas").addEventListener("click", ev => { const b = ev.target.closest("[data-aba]"); if (b) mostrarAba(b.dataset.aba); });
+function atualizar(){ carregarSaude(); if (abaAtual === "alertas" && !$("#modal").open) carregarAlertas(); }
+setInterval(atualizar, 3000);
+// Navegadores pausam abas em segundo plano: ao voltar para o painel, atualiza na hora
+document.addEventListener("visibilitychange", () => { if (!document.hidden) atualizar(); });
+carregarSaude().then(() => mostrarAba("alertas"));
+</script>
+</body>
+</html>

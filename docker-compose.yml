@@ -1,0 +1,16 @@
+services:
+  noc-painel:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_PATH: /app/dados/noc.db
+    volumes:
+      - noc_dados:/app/dados
+    ports:
+      - "8080:8080"
+
+volumes:
+  noc_dados:
