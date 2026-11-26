@@ -1,60 +1,125 @@
 # Painel NOC
 
-Backend em Python (FastAPI) que lê os alertas do Zabbix, agrupa por host em incidentes, controla o prazo de cada regra e prepara o e-mail padrão. O painel web é servido pelo próprio backend.
+Painel web de alertas Zabbix desenvolvido em Python (FastAPI) + Docker para equipes de NOC e SRE.  
+Lê os problemas abertos do Zabbix, agrupa por host em incidentes, controla o prazo de cada regra de escalonamento e prepara o rascunho do e-mail padrão com a mensagem da equipe — pronto para revisão e envio direto da interface.
 
-## Rodar no seu computador
+## Pré-visualização
 
-1. Instale o Docker (Docker Engine, ou Docker Desktop se a TI liberar a licença).
-2. Nesta pasta, copie o arquivo de configuração:
-   - Windows (PowerShell): `copy .env.example .env`
-   - Linux/Mac: `cp .env.example .env`
-3. Abra o `.env` e troque pelo menos `PAINEL_SENHA`.
-4. Suba o serviço:
-   ```
-   docker compose up -d --build
-   ```
-5. Abra http://localhost:8080 (usuário e senha do `.env`).
+Prints reais da interface (modo simulado):
 
-Comandos úteis: `docker compose logs -f` (acompanhar), `docker compose down` (parar), `docker compose up -d --build` (aplicar mudanças no código).
+### Lista de alertas
 
-## Rodar sem Docker (Windows, só com Python)
+Fila principal com contadores por gravidade, prazos vencidos com botão **Revisar e enviar** e filtro por host/problema.
 
-Dentro de `noc-painel\\backend`, uma vez só:
+![Lista de alertas](docs/alertas.png)
+
+### Sem regra
+
+Alertas de hosts ou problemas ainda não cadastrados, caindo na regra padrão — dá pra atender e cadastrar a regra direto dali.
+
+![Alertas sem regra](docs/sem-regra.png)
+
+### Regras
+
+Cadastro de regras por host e problema: tempo de espera, destinatários (Para/Cc) e link do procedimento na wiki.
+
+![Regras](docs/regras.png)
+
+### Contatos
+
+Destinatários cadastrados uma vez e reutilizados nas regras.
+
+![Contatos](docs/contatos.png)
+
+### Mensagem padrão
+
+Modelo do e-mail de alerta com variáveis automáticas (`{saudacao}`, `{host}`, `{problema}`, `{gravidade}`, `{hora}`) e prévia com um alerta de exemplo — o print no estilo do Zabbix entra sozinho entre os dois textos.
+
+![Mensagem padrão](docs/mensagem-padrao.png)
+
+### Histórico
+
+Registro dos e-mails preparados/simulados e das decisões tomadas em cada alerta.
+
+![Histórico](docs/historico.png)
+
+---
+
+## Funcionalidades
+
+- **Leitura automática do Zabbix**: sincroniza problemas abertos em ciclo contínuo (modo real ou simulado).
+- **Agrupamento por incidente**: cada problema vira um alerta separado com prazo e e-mail próprios.
+- **Regras de escalonamento**: cadastre regras por host e problema, com tempo de espera, destinatários, cópia e envio automático.
+- **Mensagem padrão configurável**: edite assunto, texto antes e texto depois do alerta, com variáveis automáticas (`{saudacao}`, `{host}`, `{problema}`, `{gravidade}`, `{hora}`).
+- **Revisão e envio de e-mails**: abra o rascunho, edite se precisar e envie (ou simule) direto da tela.
+- **Tela "Sem regra"**: liste alertas de hosts ou problemas ainda não cadastrados e cadastre regras diretamente por lá.
+- **Modo simulado**: teste todo o fluxo sem enviar e-mail de verdade.
+- **Docker Compose**: suba tudo com um comando, sem instalar dependências manualmente.
+- **Testes automatizados**: cobertura do motor de regras com `unittest`.
+
+## Pré-requisitos
+
+- [Docker](https://www.docker.com/) e Docker Compose, ou
+- Python 3.10+ (para rodar sem Docker)
+
+## Rodar com Docker (recomendado)
+
+```bash
+# 1. Acesse a pasta do projeto
+cd C:\Projetos\Painel-NOC\noc-painel
+
+# 2. Copie o arquivo de configuração de exemplo
+copy .env.example .env
+
+# 3. Edite o .env com pelo menos PAINEL_USUARIO e PAINEL_SENHA
+
+# 4. Suba o serviço
+docker compose up -d --build
+
+# 5. Abra no navegador
+http://localhost:8080
 ```
-python -m venv .venv
-.\\.venv\\Scripts\\python -m pip install -r requirements.txt
-```
-Para subir (pede o token na hora, escondido, e não grava em arquivo):
-```
-.\\.venv\\Scripts\\python iniciar.py
-```
-Para guardar o token (no Gerenciador de Credenciais do Windows, não em arquivo) e não colar toda vez, rode uma vez `.\\.venv\\Scripts\\python -m pip install keyring`; na execução seguinte o programa pergunta se pode guardar. Use `--trocar-token` para substituir e `--esquecer-token` para apagar.
-Para uma demonstração sem Zabbix e sem token: `.\\.venv\\Scripts\\python iniciar.py --simulado`.
-Edite o endereço do Zabbix e as gravidades no começo do `iniciar.py`. Esse modo abre sem login e só no próprio computador.
 
-## Primeiro teste (sem Zabbix)
+Comandos úteis:
+- `docker compose logs -f` — acompanhar logs em tempo real
+- `docker compose down` — parar os serviços
+- `docker compose up -d --build` — aplicar mudanças no código
 
-Com `ZABBIX_MODE=mock` e `EMAIL_MODE=dry-run` (valores iniciais) o painel mostra 3 incidentes simulados.
-Em poucos minutos o do `SW-CLIENTE-B` vence o prazo e o e-mail fica pronto para revisar. Nada é enviado.
-Use "Criar alerta de teste" para simular outros hosts e "Recuperar" para simular a normalização.
+## Rodar sem Docker (somente Windows)
 
-## Ligar ao Zabbix de verdade (só leitura)
-
-No `.env`: `ZABBIX_MODE=real`, `ZABBIX_URL` (termina em `/api_jsonrpc.php`) e `ZABBIX_TOKEN`.
-Use um usuário só de leitura nos grupos de hosts do NOC. Depois: `docker compose up -d --build`.
-O topo do painel mostra se a leitura está funcionando ou o erro retornado.
-
-## Enviar e-mail de verdade
-
-Só depois de validar tudo em modo teste: `EMAIL_MODE=smtp` e preencher `SMTP_*` com a conta do NOC.
-
-## Testes do motor de regras
-
-```
+```powershell
+# Dentro da pasta backend
 cd backend
-python -m unittest discover -s tests -t . -v
+
+# Criar ambiente virtual e instalar dependências
+python -m venv .venv
+.\.venv\Scripts\python -m pip install -r requirements.txt
+
+# Subir o painel (modo real, com token do Zabbix)
+.\.venv\Scripts\python iniciar.py
+
+# Modo simulado (sem Zabbix, sem envio de e-mail real)
+.\.venv\Scripts\python iniciar.py --simulado
 ```
 
-## Nome e logo do painel
+## Configuração (.env)
 
-`PAINEL_NOME` (no `.env` ou nas variáveis do `iniciar.py`) troca o nome mostrado no cabeçalho. Para mostrar o logo da empresa, coloque o arquivo `logo.png` dentro da pasta `frontend`.
+Copie `.env.example` para `.env` e ajuste:
+
+| Variável | Descrição |
+|----------|-----------|
+| `PAINEL_USUARIO` | Usuário de login do painel |
+| `PAINEL_SENHA` | Senha de login do painel |
+| `ZABBIX_MODE` | `mock` (simulado) ou `real` |
+| `ZABBIX_URL` | URL do Zabbix API (termina em `/api_jsonrpc.php`) |
+| `ZABBIX_TOKEN` | Token de API do Zabbix (usuário somente leitura) |
+| `EMAIL_MODE` | `dry-run` (simulado) ou `smtp` (envio real) |
+| `SMTP_*` | Credenciais SMTP da conta do NOC (só em modo smtp) |
+
+## Licença
+
+Este projeto está sob a licença [MIT](LICENSE). Você pode usar, modificar e distribuir livremente, mantendo os avisos de autoria.
+
+## Autor
+
+Jefferson Souza
